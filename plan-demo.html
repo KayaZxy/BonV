@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>BonV · 高保真原型（v1.0 · 评审确认版）</title>
+<!-- 高德地图 JS API 1.4.15（仅需 Key，无需安全密钥；key 已配置） -->
+<script src="https://webapi.amap.com/maps?v=1.4.15&key=cf2dec26359f65a5f3f9bfdc7981fb4d"></script>
+<style>
+:root{
+  --font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",sans-serif;
+  --bg-primary:#F2F2F7; --bg-card:#FFFFFF;
+  --color-primary:#007AFF; --color-success:#34C759; --color-warning:#FF9500;
+  --color-danger:#FF3B30; --color-purple:#AF52DE; --color-secondary:#8E8E93;
+  --color-tertiary:#AEAEB2; --color-bg-secondary:#F2F2F7;
+  --radius-card:12px; --radius-large:20px; --radius-button:980px;
+  --divider:rgba(60,60,67,0.18); --shadow-card:0 1px 3px rgba(0,0,0,0.08);
+  --spacing-xs:4px;--spacing-sm:8px;--spacing-md:16px;--spacing-lg:20px;--spacing-xl:32px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;font-family:var(--font-family);background:#000;color:#1c1c1e;}
+.phone{position:relative;max-width:402px;margin:0 auto;background:var(--bg-primary);min-height:100vh;
+  box-shadow:0 0 40px rgba(0,0,0,.4);overflow:hidden;}
+.statusbar{height:44px;background:var(--bg-primary);display:flex;align-items:center;justify-content:space-between;
+  padding:0 22px;font-size:15px;font-weight:600;color:#1c1c1e;}
+.statusbar .icons{display:flex;gap:6px;align-items:center;}
+.navbar{height:48px;background:var(--bg-primary);display:flex;align-items:center;justify-content:center;
+  position:relative;border-bottom:.5px solid var(--divider);font-size:17px;font-weight:600;}
+.navbar .left{position:absolute;left:12px;color:var(--color-primary);font-size:17px;display:flex;align-items:center;gap:2px;}
+.navbar .right{position:absolute;right:12px;color:var(--color-primary);font-size:15px;font-weight:500;}
+.screen{display:none;padding-bottom:84px;min-height:calc(100vh - 92px);}
+.screen.active{display:block;}
+.content{padding:12px;}
+/* iOS grouped card */
+.group-title{font-size:13px;color:var(--color-secondary);text-transform:uppercase;letter-spacing:.4px;
+  margin:18px 16px 8px;}
+.card{background:var(--bg-card);border-radius:var(--radius-card);box-shadow:var(--shadow-card);
+  margin:0 16px 12px;overflow:hidden;}
+.card .row{display:flex;align-items:center;padding:14px 16px;border-bottom:.5px solid var(--divider);}
+.card .row:last-child{border-bottom:none;}
+.card .row .k{color:var(--color-secondary);font-size:15px;}
+.card .row .v{flex:1;text-align:right;font-size:15px;font-weight:500;}
+/* buttons */
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:var(--radius-button);
+  font-size:17px;font-weight:600;font-family:var(--font-family);cursor:pointer;}
+.btn-primary{background:var(--color-primary);color:#fff;}
+.btn-secondary{background:#E9E9EB;color:#1c1c1e;}
+.btn-warning{background:var(--color-warning);color:#fff;}
+.btn-ghost{background:transparent;color:var(--color-primary);font-size:15px;font-weight:500;padding:10px;}
+/* bottom tab */
+.tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:402px;
+  height:84px;background:rgba(249,249,249,.92);backdrop-filter:blur(20px);
+  border-top:.5px solid var(--divider);display:flex;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--color-tertiary);font-size:10px;}
+.tab.active{color:var(--color-primary);}
+.tab svg{width:26px;height:26px;}
+/* Bo mascot */
+.bo{width:64px;height:64px;display:inline-block;transform-origin:center;animation:breathe 3.4s ease-in-out infinite;}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.bo .eye{transform-origin:center;animation:blink 4s infinite;}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
+/* chat */
+.chat{max-width:402px;margin:0 auto;padding:12px;}
+.bubble{display:flex;gap:8px;margin-bottom:12px;align-items:flex-end;}
+.bubble.bo .msg{background:#fff;border-radius:18px 18px 18px 4px;padding:11px 14px;font-size:15px;max-width:78%;box-shadow:var(--shadow-card);}
+.bubble.me{justify-content:flex-end;}
+.bubble.me .msg{background:var(--color-primary);color:#fff;border-radius:18px 18px 4px 18px;padding:11px 14px;font-size:15px;max-width:78%;}
+.quick{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px;}
+.chip{background:#E9E9EB;border-radius:980px;padding:8px 14px;font-size:14px;color:#1c1c1e;}
+.inputbar{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);width:100%;max-width:402px;
+  background:var(--bg-primary);padding:8px 12px;display:flex;gap:8px;align-items:center;border-top:.5px solid var(--divider);}
+.inputbar input{flex:1;background:#fff;border:none;border-radius:980px;padding:11px 16px;font-size:15px;font-family:var(--font-family);}
+.voice-btn{width:42px;height:42px;border-radius:50%;background:var(--color-primary);border:none;display:flex;align-items:center;justify-content:center;}
+/* weather card */
+.weather{background:linear-gradient(160deg,#4A6CF7,#7B5CF0);color:#fff;border-radius:var(--radius-large);
+  margin:0 16px 12px;padding:18px;}
+.weather .city{font-size:22px;font-weight:700;}
+.weather .day{font-size:13px;opacity:.85;margin-top:2px;}
+.weather .alert{margin-top:12px;background:rgba(255,255,255,.16);border-radius:12px;padding:9px 12px;font-size:13px;}
+.weather .days{display:flex;gap:10px;margin-top:14px;overflow-x:auto;}
+.weather .d{flex:1;min-width:56px;text-align:center;background:rgba(255,255,255,.12);border-radius:12px;padding:8px 4px;}
+/* timeline */
+.tl{background:#fff;border-radius:var(--radius-card);margin:0 16px 12px;padding:14px 16px;box-shadow:var(--shadow-card);}
+.tl .tl-head{font-size:17px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.tl .item{display:flex;gap:12px;padding:8px 0;border-bottom:.5px solid var(--divider);}
+.tl .item:last-child{border-bottom:none;}
+.dot{width:12px;height:12px;border-radius:50%;margin-top:4px;flex:none;background:var(--color-primary);}
+.dot.o{background:var(--color-warning);} .dot.g{background:var(--color-success);} .dot.e{background:var(--color-secondary);}
+.tl .time{font-weight:600;font-size:14px;width:54px;flex:none;}
+.tl .act{flex:1;font-size:14px;}
+.tl .sub{color:var(--color-secondary);font-size:12px;margin-top:2px;}
+/* map */
+.map{height:300px;margin:0 16px 12px;border-radius:var(--radius-large);overflow:hidden;box-shadow:var(--shadow-card);}
+.route-list{margin:0 16px 12px;}
+.route-list .r{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;box-shadow:var(--shadow-card);}
+.route-list .num{width:24px;height:24px;border-radius:50%;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;}
+/* cost */
+.cost{margin:0 16px 12px;background:#fff;border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;}
+.cost .c{padding:11px 16px;border-bottom:.5px solid var(--divider);display:flex;justify-content:space-between;font-size:14px;}
+.cost .c.total{font-weight:700;background:#F2F2F7;}
+.cost .net{color:var(--color-success);}
+/* hotel */
+.hotel{margin:0 16px 12px;background:#fff;border-radius:12px;box-shadow:var(--shadow-card);padding:14px 16px;}
+.hotel.main{border:2px solid var(--color-primary);}
+.hotel .name{font-size:16px;font-weight:600;}
+.hotel .meta{color:var(--color-secondary);font-size:13px;margin-top:4px;}
+.tag{display:inline-block;background:#E9F0FF;color:var(--color-primary);font-size:11px;padding:2px 8px;border-radius:6px;margin-right:6px;margin-top:6px;}
+/* section header inside plan */
+.plan-h{font-size:20px;font-weight:700;margin:18px 16px 10px;}
+.note{margin:0 16px 12px;background:#FFF8E8;border-radius:12px;padding:12px 14px;font-size:13px;color:#7a5b00;}
+.collapse-head{display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.mini{font-size:11px;color:var(--color-tertiary);}
+/* service config */
+.svc{margin:0 16px 12px;background:#fff;border-radius:12px;box-shadow:var(--shadow-card);padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.svc .logo{width:40px;height:40px;border-radius:10px;background:#E9E9EB;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.svc .st{margin-left:auto;font-size:13px;padding:4px 10px;border-radius:980px;}
+.st.on{background:#E5F8EC;color:var(--color-success);} .st.off{background:#F1F1F3;color:var(--color-secondary);}
+.demo-flag{position:fixed;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:4px 8px;border-radius:8px;z-index:99;max-width:402px;}
+.fab-edit{position:fixed;top:100px;right:14px;max-width:402px;left:auto;transform:none;background:var(--color-primary);color:#fff;border:none;border-radius:980px;padding:8px 16px;font-size:14px;font-weight:600;z-index:50;box-shadow:0 4px 12px rgba(0,122,255,.4);}
+</style>
+</head>
+<body>
+<div class="demo-flag">高保真原型 · 示例数据（非真实票价/坐标）· 1:1 可还原至 Figma</div>
+<div class="phone" id="phone">
+
+  <!-- ============ 登录 ============ -->
+  <section class="screen active" id="s-login">
+    <div class="statusbar"><span>9:41</span><span class="icons">●●● 5G ▮</span></div>
+    <div class="content" style="padding-top:60px;text-align:center;">
+      <div style="display:flex;justify-content:center;margin-bottom:18px;">__BO__</div>
+      <h1 style="font-size:26px;font-weight:700;margin:0 0 6px;">BonV 旅行助手</h1>
+      <p style="color:var(--color-secondary);font-size:15px;margin:0 0 40px;">一次配置，随时生成，全程跟踪</p>
+      <button class="btn btn-primary" onclick="go('s-home')" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M8.2 21.6C8 20 8 18.4 8.2 16.9l-3-2.1c-.8-.5-1.1-1.5-.7-2.3.3-.6.9-1 1.6-1l3.6.1A8 8 0 0 1 11 4.1L7.8 2.9c-.7-.3-1.5 0-1.9.7-.3.5-.3 1.2 0 1.7L7.4 6c1-3 3.2-5.4 6.3-6.2.3 0 .6.1.8.3l2.6 2c.5.4.7 1 .5 1.6-.2.6-.7 1-1.4 1.1l-1.6.2A6 6 0 0 0 13 9.6l3.4-.3c.7 0 1.4.3 1.8 1 .3.6.3 1.3-.1 1.9l-1.6 2.3c1.4 2.5 1.9 5.4 1.4 8.2 0 .3-.1.6-.4.8l-2.4 1.9c-.5.4-1.2.4-1.7 0-.4-.4-.6-1-.4-1.6l.6-2.2c-1.7.8-3.6 1-5.4.7l-.8 2.4c-.2.6-.7 1-1.3 1.1-.6.1-1.2-.1-1.6-.6z"/></svg>
+        微信一键登录
+      </button>
+      <div style="height:12px;"></div>
+      <button class="btn btn-secondary" onclick="go('s-home')">使用 GitHub 登录</button>
+      <div style="height:24px;"></div>
+      <button class="btn btn-ghost" onclick="go('s-home')">先体验演示模式</button>
+      <p class="mini" style="margin-top:30px;">Q1 结论：优先第三方 OAuth，微信为首；短信验证码为后续增强</p>
+    </div>
+  </section>
+
+  <!-- ============ 首页 / 主界面 ============ -->
+  <section class="screen" id="s-home">
+    <div class="statusbar"><span>9:41</span><span class="icons">●●● 5G ▮</span></div>
+    <div class="navbar"><span class="left" onclick="go('s-login')">〈</span>小Bo</div>
+    <div class="chat" style="padding-bottom:8px;">
+      <div class="bubble bo"><div style="width:36px;height:36px;flex:none;">__BO_SM__</div>
+        <div class="msg">你好 daddy 👋 我是小Bo，你的 AI 旅行助手。<br>想规划一次出差还是旅行？直接告诉我，或点下面的快捷开始。</div></div>
+      <div class="quick">
+        <span class="chip" onclick="go('s-confirm')">✈️ 新建行程</span>
+        <span class="chip" onclick="go('s-plan')">📍 看最近的行程</span>
+        <span class="chip" onclick="go('s-profile')">👤 我的档案</span>
+      </div>
+      <div class="bubble me"><div class="msg">明天去怀化出差，后天回，去怀化公交公司开个会</div></div>
+      <div class="bubble bo"><div style="width:36px;height:36px;flex:none;">__BO_SM__</div>
+        <div class="msg">收到～已识别：目的地 <b>怀化</b>，1 天 1 晚，会场 <b>怀化公交集团</b>。<br>还有几点需要你确认，已整理成行程确认单 👇</div></div>
+      <button class="btn btn-primary" style="margin-top:6px;" onclick="go('s-confirm')">查看行程确认单</button>
+    </div>
+    <!-- current trip card -->
+    <div class="card" style="margin-top:8px;cursor:pointer;" onclick="go('s-plan')">
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:2px;">
+        <div style="display:flex;justify-content:space-between;width:100%;">
+          <b style="font-size:17px;">📍 怀化出差</b>
+          <span style="color:var(--color-success);font-size:13px;">🟢 已确认</span>
+        </div>
+        <span class="mini">7/24 周四 → 7/25 周五 · 距出发 1 天</span>
+      </div>
+    </div>
+    <div class="inputbar">
+      <input placeholder="告诉小Bo你的计划…" />
+      <button class="voice-btn" onclick="alert('语音输入：按住说话（Web Speech API，Chrome/Android 支持，iOS Safari 降级手动）')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2z"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ 行程确认单 ============ -->
+  <section class="screen" id="s-confirm">
+    <div class="statusbar"><span>9:41</span><span class="icons">●●● 5G ▮</span></div>
+    <div class="navbar"><span class="left" onclick="go('s-home')">〈</span>行程确认单</div>
+    <div class="card">
+      <div class="row"><span class="k">目的地</span><span class="v">怀化市</span></div>
+      <div class="row"><span class="k">出差事由</span><span class="v">开会</span></div>
+      <div class="row"><span class="k">出发日期</span><span class="v">2026/07/24 周四</span></div>
+      <div class="row"><span class="k">返回日期</span><span class="v">2026/07/25 周五</span></div>
+      <div class="row"><span class="k">会场</span><span class="v" style="max-width:55%;">怀化公交集团</span></div>
+    </div>
+    <div class="card">
+      <div class="row" style="gap:10px;"><span style="font-size:22px;">👤</span>
+        <div style="flex:1;"><b>本人（daddy）</b><div class="mini">已套用你的全部出行偏好</div></div>
+        <span style="color:var(--color-primary);font-size:14px;">切换 ▾</span></div>
+    </div>
+    <div class="card">
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+        <span class="k">每日任务</span>
+        <div class="mini">7/24 周四 · 全天：前往怀化 → 入住 → 傍晚怀化公交集团开会</div>
+        <div class="mini">7/25 周五 · 上午：会场开会 → 午后返程</div>
+      </div>
+    </div>
+    <div class="content" style="padding-top:4px;">
+      <button class="btn btn-secondary" onclick="go('s-home')">✕ 修改</button>
+      <div style="height:10px;"></div>
+      <button class="btn btn-primary" onclick="go('s-plan')">✓ 确认生成方案</button>
+    </div>
+  </section>
+
+  <!-- ============ 方案详情（核心） ============ -->
+  <section class="screen" id="s-plan">
+    <div class="statusbar"><span>9:41</span><span class="icons">●●● 5G ▮</span></div>
+    <div class="navbar"><span class="left" onclick="go('s-home')">〈</span>怀化出差 · 方案</div>
+    <button class="fab-edit" onclick="alert('修改方案：对小Bo 说“酒店换更近会场的”→ 生成 v2 版本（旧版保留可切换）')">✎ 修改方案</button>
+
+    <!-- ① 天气卡 -->
+    <div class="weather">
+      <div class="city">怀化市 · 鹤城区</div>
+      <div class="day">7/24 周四 → 7/25 周五</div>
+      <div class="days">
+        <div class="d"><div style="font-size:22px;">⛅</div><div style="font-size:12px;margin-top:2px;">周四</div><div style="font-size:12px;font-weight:600;">26-33°</div></div>
+        <div class="d"><div style="font-size:22px;">🌤️</div><div style="font-size:12px;margin-top:2px;">周五</div><div style="font-size:12px;font-weight:600;">27-34°</div></div>
+      </div>
+      <div class="alert">⚠️ 两天均偏热、午后有阵雨可能，随身带伞、透气着装、注意防晒。</div>
+    </div>
+
+    <!-- ② 关键信息卡 -->
+    <div class="card">
+      <div class="group-title" style="margin:0 0 4px;">关键信息</div>
+      <div class="row"><span class="k">交通方式</span><span class="v">高铁往返 · 全程最优</span></div>
+      <div class="row"><span class="k">去程</span><span class="v">长沙南→怀化南 09:32-11:08</span></div>
+      <div class="row"><span class="k">回程</span><span class="v">怀化南→长沙南 14:20-15:56</span></div>
+      <div class="row"><span class="k">到家</span><span class="v">≈16:50 · 早于 22:00 ✓</span></div>
+      <div class="row"><span class="k">住宿</span><span class="v">如家·怀化高铁南站店 · 距会场 1.2km</span></div>
+    </div>
+
+    <!-- ③ 去程时间链 -->
+    <div class="plan-h">去程时间链</div>
+    <div class="tl">
+      <div class="tl-head">🟦 7/24 周四 · 出发日</div>
+      <div class="item"><span class="dot"></span><span class="time">08:05</span><span class="act">保利长交锦上出发<div class="sub">打车→长沙南站 · 约35min · ¥45</div></span></div>
+      <div class="item"><span class="dot"></span><span class="time">08:40</span><span class="act">长沙南站 安检候车<div class="sub">预留充足时间</div></span></div>
+      <div class="item"><span class="dot"></span><span class="time">09:32</span><span class="act">G6XXX 发车<div class="sub">长沙南→怀化南 · 二等座 · ¥149</div></span></div>
+      <div class="item"><span class="dot"></span><span class="time">11:08</span><span class="act">怀化南站到达<div class="sub">打车→酒店 · 约15min · ¥18</div></span></div>
+      <div class="item"><span class="dot"></span><span class="time">11:40</span><span class="act">酒店入住 · 午餐<div class="sub">本地米粉（偏辣·本地特色）</div></span></div>
+      <div class="item"><span class="dot w"></span><span class="time">18:30</span><span class="act">怀化公交集团 开会<div class="sub">打车/地铁 · 约20min</div></span></div>
+    </div>
+
+    <!-- ④ 在地时间链 -->
+    <div class="plan-h">在地时间链</div>
+    <div class="tl">
+      <div class="tl-head">🟦 7/25 周五 · 在地 Day 1</div>
+      <div class="item"><span class="dot g"></span><span class="time">07:30</span><span class="act">酒店早餐<div class="sub">含早</div></span></div>
+      <div class="item"><span class="dot"></span><span class="time">09:00</span><span class="act">怀化公交集团 开会<div class="sub">打车→会场 · 约20min</div></span></div>
+      <div class="item"><span class="dot g"></span><span class="time">12:00</span><span class="act">午餐<div class="sub">会场附近·湘西特色（血粑鸭/米豆腐）· 本地特色优先</div></span></div>
+      <div class="item"><span class="dot"></span><span class="time">14:20</span><span class="act">怀化南站 返程发车<div class="sub">G6XXX · 二等座 · ¥149</div></span></div>
+      <div class="item"><span class="dot e"></span><span class="time">15:56</span><span class="act">长沙南到达 → 到家<div class="sub">打车→家 · ≈16:50</div></span></div>
+    </div>
+
+    <!-- ⑥ GIS 地图 -->
+    <div class="plan-h">市内地图 · 轨迹</div>
+    <div class="map" id="map"></div>
+    <div class="route-list">
+      <div class="r"><span class="num">1</span><span>怀化南站 → 酒店（打车）</span><span style="margin-left:auto;color:var(--color-secondary);">1.2km · 15min · ¥18</span></div>
+      <div class="r"><span class="num">2</span><span>酒店 → 怀化公交集团（打车/地铁）</span><span style="margin-left:auto;color:var(--color-secondary);">3.0km · 20min</span></div>
+      <div class="r"><span class="num">3</span><span>会场 → 午餐（步行）</span><span style="margin-left:auto;color:var(--color-secondary);">400m · 5min</span></div>
+    </div>
+
+    <!-- ⑦ 三档酒店 -->
+    <div class="plan-h">酒店推荐（含早）</div>
+    <div class="hotel main">
+      <div class="name">如家·怀化高铁南站店 <span class="tag">主推</span></div>
+      <div class="meta">¥199/晚 · 评分 4.7 · 距会场 1.2km · 步行/打车可达</div>
+      <span class="tag">含早</span><span class="tag">近高铁</span><span class="tag">连锁</span>
+    </div>
+    <div class="hotel">
+      <div class="name">全季酒店（怀化火车站店）</div>
+      <div class="meta">¥312/晚 · 评分 4.8 · 距会场 2.5km</div>
+      <span class="tag">含早</span><span class="tag">品质</span>
+    </div>
+    <div class="hotel">
+      <div class="name">维也纳国际（怀化中心店）</div>
+      <div class="meta">¥408/晚 · 评分 4.6 · 距会场 3.0km</div>
+      <span class="tag">含早</span><span class="tag">商圈</span>
+    </div>
+
+    <!-- ⑧ 本地美食 -->
+    <div class="plan-h">本地特色美食</div>
+    <div class="card">
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;">
+        <b>湘西血粑鸭</b><span class="mini">本地特色·偏辣 · 人均 ¥45</span>
+        <b style="margin-top:6px;">怀化米粉</b><span class="mini">早餐首选·偏辣 · 人均 ¥12</span>
+        <b style="margin-top:6px;">米豆腐</b><span class="mini">小吃·本地特色 · 人均 ¥15</span>
+      </div>
+    </div>
+
+    <!-- ⑨ 费用对比 -->
+    <div class="plan-h">费用对比</div>
+    <div class="cost">
+      <div class="c"><span>公司报销 · 交通（高铁往返）</span><span>¥298</span></div>
+      <div class="c"><span>公司报销 · 住宿（1晚）</span><span>¥199</span></div>
+      <div class="c"><span>个人自付 · 餐饮</span><span>¥74</span></div>
+      <div class="c"><span>个人自付 · 市内交通</span><span>¥73</span></div>
+      <div class="c"><span>补贴抵扣 · 餐补¥50+交补¥70</span><span>¥120</span></div>
+      <div class="c total"><span>净自付</span><span class="net">¥27（补贴覆盖后极少自掏）</span></div>
+    </div>
+
+    <!-- ⑩ 一键预订 (Q5) -->
+    <div class="plan-h">一键预订</div>
+    <div class="content" style="padding-top:0;">
+      <button class="btn btn-primary" onclick="alert('Q5：优先经已连接的同程连接器跳转平台内登录认证并下单付款')">去程/回程 高铁票</button>
+      <div style="height:10px;"></div>
+      <button class="btn btn-warning" onclick="alert('跳转同程/携程酒店预订')">预订酒店</button>
+      <div style="height:10px;"></div>
+      <button class="btn btn-secondary" onclick="alert('打开比价页（选最低价平台）')">比价链接</button>
+    </div>
+
+    <!-- ⑪ 重要备注 -->
+    <div class="note">⚠️ 重要提醒：① 出发不早于 08:05，到家不晚于 22:00（本方案 16:50 到家 ✓）；② 票价/天气以出行当日平台为准；③ 地图坐标为近似示意。</div>
+
+    <!-- ⑫ 城市简介 -->
+    <div class="plan-h">城市简介</div>
+    <div class="card">
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+        <b>怀化 · 湖南省地级市</b>
+        <span class="mini">区位：湘黔桂渝鄂五省周边中心，有“火车拖来的城市”之称（沪昆/焦柳/渝怀铁路交汇）。</span>
+        <span class="mini">人文：多民族聚居（侗、苗、土家等），通道侗寨、洪江古商城为代表。</span>
+        <span class="mini">人口经济：常住人口约 450 万，以商贸物流、旅游为特色。</span>
+        <span class="mini">行政：辖 1 区（鹤城）9 县 1 市（洪江市）。</span>
+      </div>
+    </div>
+    <div style="height:20px;"></div>
+  </section>
+
+  <!-- ============ 个人中心 ============ -->
+  <section class="screen" id="s-profile">
+    <div class="statusbar"><span>9:41</span><span class="icons">●●● 5G ▮</span></div>
+    <div class="navbar"><span class="left" onclick="go('s-home')">〈</span>我的</div>
+    <div class="card" style="margin-top:16px;">
+      <div class="row" style="gap:12px;"><span style="font-size:34px;">👤</span>
+        <div style="flex:1;"><b>daddy</b><div class="mini">已登录 · 微信</div></div>
+        <span style="color:var(--color-primary);">编辑</span></div>
+    </div>
+    <div class="group-title">行程</div>
+    <div class="card">
+      <div class="row" onclick="go('s-plan')"><span class="k">我的行程</span><span class="v">1 进行中 ›</span></div>
+      <div class="row"><span class="k">我帮 TA 们的行程</span><span class="v">0 ›</span></div>
+      <div class="row"><span class="k">城市档案</span><span class="v">1 ›</span></div>
+    </div>
+    <div class="group-title">设置</div>
+    <div class="card">
+      <div class="row" onclick="go('s-services')"><span class="k">旅客档案 / 档案分享</span><span class="v">›</span></div>
+      <div class="row" onclick="go('s-services')"><span class="k">服务配置</span><span class="v">3 已连 ›</span></div>
+      <div class="row"><span class="k">数据导出 / 导入</span><span class="v">›</span></div>
+      <div class="row"><span class="k">退出登录</span><span class="v" style="color:var(--color-danger);">›</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 服务配置 ============ -->
+  <section class="screen" id="s-services">
+    <div class="statusbar"><span>9:41</span><span class="icons">●●● 5G ▮</span></div>
+    <div class="navbar"><span class="left" onclick="go('s-profile')">〈</span>服务配置</div>
+    <div class="group-title">已连接（点按钮经连接器跳转平台内下单）</div>
+    <div class="svc"><span class="logo">🚄</span><div style="flex:1;"><b>同程旅行</b><div class="mini">机票/火车票/酒店</div></div><span class="st on">已连</span></div>
+    <div class="svc"><span class="logo">🏨</span><div style="flex:1;"><b>携程</b><div class="mini">酒店/机票比价</div></div><span class="st on">已连</span></div>
+    <div class="svc"><span class="logo">🚕</span><div style="flex:1;"><b>滴滴出行</b><div class="mini">打车</div></div><span class="st on">已连</span></div>
+    <div class="group-title">未连接</div>
+    <div class="svc"><span class="logo">📧</span><div style="flex:1;"><b>邮箱（报销转发）</b><div class="mini">用于事后报销资料汇总</div></div><span class="st off">去配置</span></div>
+    <div class="svc"><span class="logo">🗺️</span><div style="flex:1;"><b>地图服务</b><div class="mini">高德地图（Key 已接入）</div></div><span class="st" style="color:#34C759">已接入</span></div>
+    <p class="mini" style="margin:14px 16px;">Q5：已连接连接器 → 一键预订直接跳转平台内登录认证并下单付款；未连接 → 降级跳转外部平台（自行下单）。</p>
+  </section>
+
+  <!-- bottom tab -->
+  <div class="tabbar">
+    <div class="tab active" data-t="s-home" onclick="tab('s-home')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 3 10v11h6v-6h6v6h6V10z"/></svg>首页</div>
+    <div class="tab" data-t="s-plan" onclick="tab('s-plan')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 2h6a2 2 0 0 1 2 2v18l-5-3-5 3V4a2 2 0 0 1 2-2z"/></svg>行程</div>
+    <div class="tab" data-t="s-profile" onclick="tab('s-profile')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5z"/></svg>我的</div>
+  </div>
+</div>
+
+<script>
+// ---- 小Bo SVG 注入（静态SVG + CSS 微动效：呼吸/眨眼，Q3） ----
+var boSVG = '<svg class="bo" viewBox="0 0 64 64"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4A6CF7"/><stop offset="1" stop-color="#7B5CF0"/></linearGradient></defs><rect x="10" y="10" width="44" height="44" rx="16" fill="url(#bg)"/><circle cx="23" cy="30" r="4.5" fill="#fff" class="eye"/><circle cx="41" cy="30" r="4.5" fill="#fff" class="eye"/><path d="M24 42q8 6 16 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="16" cy="40" r="2.5" fill="#FF9500"/><circle cx="48" cy="40" r="2.5" fill="#FF9500"/></svg>';
+var boSmall = '<svg class="bo" style="width:36px;height:36px" viewBox="0 0 64 64">'+boSVG.replace('<svg class="bo" viewBox="0 0 64 64">','').replace('</svg>','')+'</svg>';
+document.getElementById('phone').innerHTML = document.getElementById('phone').innerHTML.replace(/__BO__/g, boSVG).replace(/__BO_SM__/g, boSmall);
+
+function go(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); window.scrollTo(0,0); if(id==='s-plan') setTimeout(initMap,200); }
+function tab(id){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.querySelector('.tab[data-t="'+id+'"]').classList.add('active'); go(id); }
+
+// ---- 高德地图（真实中国底图 + 驾车/步行 GIS 轨迹，key 已配置） ----
+var map, mapReady = false;
+function initMap(){
+  if(mapReady) return;
+  if(typeof AMap === 'undefined'){
+    document.getElementById('map').innerHTML =
+      '<div style="padding:24px;color:#8E8E93;font-size:13px;text-align:center">地图组件加载失败<br>请检查网络或高德 Key 配置</div>';
+    return;
+  }
+  mapReady = true;
+  map = new AMap.Map('map', { zoom: 13, center: [110.02, 27.54], resizeEnable: true });
+
+  // 怀化示例坐标 [经度, 纬度]
+  var pts = {
+    station: [110.050, 27.527],  // 怀化南站
+    hotel:   [110.020, 27.548],  // 如家·高铁南站店
+    venue:   [110.000, 27.552],  // 怀化公交集团（会场）
+    food:    [110.004, 27.550]   // 本地特色午餐
+  };
+  function mk(p, name, color){
+    new AMap.Marker({
+      position: p, map: map, title: name,
+      content: '<div style="background:'+color+';color:#fff;padding:3px 8px;border-radius:9px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.3)">'+name+'</div>',
+      offset: new AMap.Pixel(-22, -14)
+    });
+  }
+  mk(pts.station, '怀化南站', '#007AFF');
+  mk(pts.hotel,   '如家·高铁南站店', '#34C759');
+  mk(pts.venue,   '怀化公交集团', '#FF9500');
+  mk(pts.food,    '本地特色午餐', '#AF52DE');
+
+  // 驾车：高铁南站 → 酒店 → 会场（真实 GIS 轨迹，非直线）
+  AMap.plugin('AMap.Driving', function(){
+    var driving = new AMap.Driving({ map: map, hideMarkers: true, policy: AMap.DrivingPolicy.LEAST_TIME });
+    driving.search(pts.station, pts.venue, { waypoints: [pts.hotel] }, function(status){
+      if(status === 'complete' || status === 'no_data'){ setTimeout(function(){ map.setFitView(); }, 200); }
+    });
+  });
+  // 步行：会场 → 特色午餐 → 会场
+  AMap.plugin('AMap.Walking', function(){
+    var walking = new AMap.Walking({ map: map, hideMarkers: true });
+    walking.search(pts.venue, pts.food, function(status){
+      if(status === 'complete'){
+        walking.search(pts.food, pts.venue, function(){});
+        setTimeout(function(){ map.setFitView(); }, 400);
+      }
+    });
+  });
+}
+</script>
+</body>
+</html>
