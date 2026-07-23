@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>费用 · 出差助手</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="page">
+  <h1 class="large-title">费用报销</h1>
+  <p class="subtitle">所有出差花销自动汇总</p>
+
+  <div class="stat-grid mb">
+    <div class="stat"><div class="num" id="sum">¥0</div><div class="lbl">总支出</div></div>
+    <div class="stat"><div class="num" id="cnt">0</div><div class="lbl">笔数</div></div>
+    <div class="stat"><div class="num" id="avg">¥0</div><div class="lbl">单笔均</div></div>
+  </div>
+
+  <div class="group" style="margin-top:8px;">
+    <div class="group-title">按类别</div>
+    <div class="card" id="byCat"></div>
+  </div>
+
+  <div class="group">
+    <div class="group-title">明细（按日期）</div>
+    <div class="card" id="list"></div>
+  </div>
+</div>
+
+<script src="assets/js/util.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+renderTabbar("expense");
+const all = allExpenses();
+const total = all.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+document.getElementById("sum").textContent = yuan(total).replace(".00", "");
+document.getElementById("cnt").textContent = all.length;
+document.getElementById("avg").textContent = all.length ? yuan(total / all.length).replace(".00", "") : "¥0";
+
+// 按类别
+const catMap = {};
+all.forEach(e => { catMap[e.category] = (catMap[e.category] || 0) + Number(e.amount || 0); });
+const catColor = { "交通": "b-blue", "住宿": "b-purple", "餐饮": "b-orange", "其他": "b-gray" };
+const byCat = document.getElementById("byCat");
+byCat.innerHTML = Object.keys(catMap).length
+  ? Object.keys(catMap).map(c =>
+      `<div class="row"><div class="row-label"><span class="badge ${catColor[c] || 'b-gray'}">${esc(c)}</span></div>
+       <div class="row-value">${yuan(catMap[c]).replace(".00","")}</div></div>`).join("")
+  : `<div class="row"><div class="row-label muted small">暂无费用</div></div>`;
+
+// 明细
+const list = document.getElementById("list");
+list.innerHTML = all.length
+  ? all.map(e =>
+      `<div class="row">
+        <div class="row-label">
+          <div class="row-title">${esc(e.note || e.category)}</div>
+          <div class="row-sub">${fmtDate(e.date)} · ${esc(e.tripTitle || "")}</div>
+        </div>
+        <div class="row-value">${yuan(e.amount)}</div>
+      </div>`).join("")
+  : `<div class="row"><div class="row-label muted small">暂无记录，去出差详情里「记一笔费用」</div></div>`;
+</script>
+</body>
+</html>

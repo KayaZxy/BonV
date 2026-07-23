@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>出差管理 · 出差助手</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="page" id="app"></div>
+
+<script src="assets/js/util.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+renderTabbar("trips");
+const app = document.getElementById("app");
+const params = new URLSearchParams(location.search);
+const viewId = params.get("id");
+
+if (viewId) renderDetail(viewId);
+else renderList();
+
+/* ===================== 列表视图 ===================== */
+function renderList() {
+  const trips = getTrips();
+  let html = `<h1 class="large-title">我的出差</h1>
+    <p class="subtitle">记录每次行程，自动生成方案</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="openNewTrip()">+ 新建出差</button>
+    </div>`;
+
+  if (!trips.length) {
+    html += `<div class="card empty"><div class="ico">🧳</div>还没有出差记录<br>点上方按钮新建第一次</div>`;
+  } else {
+    html += `<div class="group" style="margin-top:8px;"><div class="group-title">全部（${trips.length}）</div><div class="card">`;
+    trips.forEach((t, i) => {
+      const total = tripExpenseTotal(t);
+      html += `
+        <a class="row tap" href="trips.html?id=${t.id}" style="text-decoration:none;color:inherit;">
+          <div class="row-icon" style="background:rgba(0,122,255,0.14)">✈️</div>
+          <div class="row-label">
+            <div class="row-title">${esc(t.title)}</div>
+            <div class="row-sub">${esc(t.city)} · ${fmtDate(t.start)}–${fmtDate(t.end)} · ${durDays(t.start, t.end)}天</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="row-value" style="font-size:13px;color:var(--secondary);">${yuan(total).replace(".00","")}</div>
+          </div>
+        </a>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // 城市资料快捷入口
+  html += `<div class="group"><div class="group-title">参考</div>
+    <div class="card"><a class="row tap" href="cities.html" style="text-decoration:none;color:inherit;">
+      <div class="row-icon" style="background:rgba(175,82,222,0.16)">🏙️</div>
+      <div class="row-label"><div class="row-title">城市资料库</div><div class="row-sub">交通 / 美食 / 天气 / 贴士</div></div>
+      <span style="color:var(--secondary)">›</span></a></div></div>`;
+
+  app.innerHTML = html;
+}
+
+/* ===================== 新建出差 ===================== */
+function openNewTrip() {
+  const today = todayStr();
+  openSheet("新建出差", `
+    <div class="field"><label>出差标题</label><input id="nt-title" placeholder="如：怀化出差"></div>
+    <div class="field"><label>目的地城市</label><input id="nt-city" placeholder="如：怀化"></div>
+    <div class="two-col">
+      <div class="field"><label>出发日期</label><input id="nt-start" type="date" value="${today}"></div>
+      <div class="field"><label>返回日期</label><input id="nt-end" type="date" value="${today}"></div>
+    </div>
+    <div class="field"><label>出差事由</label><input id="nt-purpose" placeholder="如：客户拜访 + 项目验收"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="submitNewTrip()">创建</button>
+    </div>
+  `);
+}
+function submitNewTrip() {
+  const title = document.getElementById("nt-title").value.trim();
+  const city = document.getElementById("nt-city").value.trim();
+  const start = document.getElementById("nt-start").value;
+  const end = document.getElementById("nt-end").value;
+  const purpose = document.getElementById("nt-purpose").value.trim();
+  if (!title || !city || !start || !end) { toast("请填完必填项"); return; }
+  const t = addTrip({ title, city, start, end, purpose });
+  closeSheet();
+  location.href = `trips.html?id=${t.id}`;
+}
+
+/* ===================== 详情视图 ===================== */
+function renderDetail(id) {
+  const t = getTrip(id);
+  if (!t) { app.innerHTML = `<div class="empty">出差不存在</div>`; return; }
+  const total = tripExpenseTotal(t);
+
+  let html = `<a href="trips.html" style="color:var(--secondary);font-size:14px;">‹ 返回</a>
+    <h1 class="large-title" style="margin-top:6px;">${esc(t.title)}</h1>
+    <div class="chip-row mb">
+      <span class="badge b-blue">📍 ${esc(t.city)}</span>
+      <span class="badge b-gray">📅 ${fmtDate(t.start)} – ${fmtDate(t.end)}（${durDays(t.start, t.end)}天）</span>
+    </div>
+    <div class="muted small mb">🎯 ${esc(t.purpose || "未填事由")}</div>
+
+    <div class="group" style="margin-top:8px;"><div class="group-title">目的地天气</div>
+      <div id="tripWeather"><div class="weather-card"><div class="weather-city">${esc(t.city)}</div><div class="weather-desc">加载中…</div></div></div>
+    </div>`;
+
+  // 每日行程
+  html += `<div class="group"><div class="group-title">行程安排</div><div class="card" style="padding:14px 16px;">`;
+  if (t.days && t.days.length) {
+    t.days.forEach(d => {
+      html += `<div style="font-weight:600;margin:6px 0 4px;">第 ${d.day} 天 · ${fmtDate(d.date)}</div><div class="timeline">`;
+      (d.items || []).forEach(it => {
+        html += `<div class="tl-item">
+          <div class="tl-time">${esc(it.time || "")}</div>
+          <div class="tl-title">${esc(it.title)}</div>
+          ${it.place ? `<div class="tl-sub">📍 ${esc(it.place)}</div>` : ""}
+          ${it.note ? `<div class="tl-sub">${esc(it.note)}</div>` : ""}
+        </div>`;
+      });
+      html += `</div>`;
+    });
+  } else {
+    html += `<div class="muted small">暂无行程，可在下方添加</div>`;
+  }
+  html += `<button class="btn btn-secondary mt" style="width:100%" onclick="openAddDay('${t.id}')">+ 添加一天行程</button></div></div>`;
+
+  // 交通
+  html += `<div class="group"><div class="group-title">交通安排</div><div class="card">`;
+  if (t.transport && t.transport.length) {
+    t.transport.forEach(tr => {
+      html += `<div class="row">
+        <div class="row-icon" style="background:rgba(90,200,250,0.16)">🚄</div>
+        <div class="row-label">
+          <div class="row-title">${esc(tr.type || "交通")} ${esc(tr.no || "")}</div>
+          <div class="row-sub">${esc(tr.from || "")} → ${esc(tr.to || "")} · ${esc(tr.time || "")}</div>
+          ${tr.note ? `<div class="row-sub">${esc(tr.note)}</div>` : ""}
+        </div></div>`;
+    });
+  } else {
+    html += `<div class="row"><div class="row-label muted small">暂无交通记录</div></div>`;
+  }
+  html += `<button class="btn btn-secondary" style="margin:12px 16px 16px;width:calc(100% - 32px)" onclick="openAddTransport('${t.id}')">+ 添加交通</button></div></div>`;
+
+  // 费用
+  html += `<div class="group"><div class="group-title">费用（合计 ${yuan(total).replace(".00","")}）</div><div class="card">`;
+  if (t.expenses && t.expenses.length) {
+    t.expenses.forEach(e => {
+      const catColor = { "交通": "b-blue", "住宿": "b-purple", "餐饮": "b-orange", "其他": "b-gray" }[e.category] || "b-gray";
+      html += `<div class="row">
+        <div class="row-label">
+          <div class="row-title">${esc(e.note || e.category)}</div>
+          <div class="row-sub">${fmtDate(e.date)} · <span class="badge ${catColor}">${esc(e.category)}</span></div>
+        </div>
+        <div class="row-value">${yuan(e.amount)}</div>
+      </div>`;
+    });
+  } else {
+    html += `<div class="row"><div class="row-label muted small">暂无费用记录</div></div>`;
+  }
+  html += `<button class="btn btn-secondary" style="margin:12px 16px 16px;width:calc(100% - 32px)" onclick="openAddExpense('${t.id}')">+ 记一笔费用</button></div></div>`;
+
+  // 备注 + 操作
+  if (t.notes) {
+    html += `<div class="group"><div class="group-title">备注</div><div class="card" style="padding:14px 16px;color:var(--secondary);font-size:14px;">${esc(t.notes)}</div></div>`;
+  }
+
+  html += `<div class="btn-row">
+    <button class="btn btn-secondary" onclick="openEditNotes('${t.id}')">编辑备注</button>
+    <button class="btn btn-danger" onclick="confirmDelete('${t.id}')">删除出差</button>
+  </div>`;
+
+  app.innerHTML = html;
+
+  // 拉取真实天气
+  getWeather(t.city).then(d => {
+    const el = document.getElementById("tripWeather");
+    if (el) el.innerHTML = weatherCardHTML(t.city, d);
+  });
+}
+
+/* ===================== 详情里的新增操作 ===================== */
+function openAddDay(id) {
+  openSheet("添加行程（第 N 天）", `
+    <div class="two-col">
+      <div class="field"><label>第几天</label><input id="ad-day" type="number" min="1" value="1"></div>
+      <div class="field"><label>日期</label><input id="ad-date" type="date" value="${todayStr()}"></div>
+    </div>
+    <div class="field"><label>时间</label><input id="ad-time" placeholder="如 09:30"></div>
+    <div class="field"><label>事项</label><input id="ad-title" placeholder="如 客户拜访"></div>
+    <div class="field"><label>地点</label><input id="ad-place" placeholder="如 客户公司"></div>
+    <div class="field"><label>备注</label><input id="ad-note" placeholder="可选"></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="submitAddDay('${id}')">添加</button></div>
+  `);
+}
+function submitAddDay(id) {
+  const day = parseInt(document.getElementById("ad-day").value) || 1;
+  const date = document.getElementById("ad-date").value;
+  const time = document.getElementById("ad-time").value.trim();
+  const title = document.getElementById("ad-title").value.trim();
+  const place = document.getElementById("ad-place").value.trim();
+  const note = document.getElementById("ad-note").value.trim();
+  if (!title) { toast("请填写事项"); return; }
+  const t = getTrip(id);
+  let d = (t.days || []).find(x => x.day === day);
+  if (!d) { d = { day, date, items: [] }; t.days = t.days || []; t.days.push(d); }
+  d.items = d.items || [];
+  d.items.push({ time, title, place, note });
+  updateTrip(id, { days: t.days });
+  closeSheet();
+  renderDetail(id);
+}
+
+function openAddTransport(id) {
+  openSheet("添加交通", `
+    <div class="field"><label>类型</label>
+      <select id="at-type"><option>高铁</option><option>飞机</option><option>打车</option><option>地铁</option><option>其他</option></select></div>
+    <div class="two-col">
+      <div class="field"><label>出发</label><input id="at-from" placeholder="湘潭北站"></div>
+      <div class="field"><label>到达</label><input id="at-to" placeholder="怀化南站"></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>时间</label><input id="at-time" placeholder="08:20"></div>
+      <div class="field"><label>车次/航班</label><input id="at-no" placeholder="G6162"></div>
+    </div>
+    <div class="field"><label>备注（票价等）</label><input id="at-note" placeholder="二等座 ¥152"></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="submitAddTransport('${id}')">添加</button></div>
+  `);
+}
+function submitAddTransport(id) {
+  const t = getTrip(id);
+  const tr = {
+    type: document.getElementById("at-type").value,
+    from: document.getElementById("at-from").value.trim(),
+    to: document.getElementById("at-to").value.trim(),
+    time: document.getElementById("at-time").value.trim(),
+    no: document.getElementById("at-no").value.trim(),
+    note: document.getElementById("at-note").value.trim()
+  };
+  t.transport = t.transport || [];
+  t.transport.push(tr);
+  updateTrip(id, { transport: t.transport });
+  closeSheet();
+  renderDetail(id);
+}
+
+function openAddExpense(id) {
+  openSheet("记一笔费用", `
+    <div class="two-col">
+      <div class="field"><label>类别</label>
+        <select id="ae-cat"><option>交通</option><option>住宿</option><option>餐饮</option><option>其他</option></select></div>
+      <div class="field"><label>日期</label><input id="ae-date" type="date" value="${todayStr()}"></div>
+    </div>
+    <div class="field"><label>金额（元）</label><input id="ae-amt" type="number" min="0" step="0.01" placeholder="0.00"></div>
+    <div class="field"><label>说明</label><input id="ae-note" placeholder="如 往返高铁"></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="submitAddExpense('${id}')">保存</button></div>
+  `);
+}
+function submitAddExpense(id) {
+  const amt = parseFloat(document.getElementById("ae-amt").value);
+  if (isNaN(amt) || amt <= 0) { toast("请填正确金额"); return; }
+  const e = {
+    id: uid(),
+    date: document.getElementById("ae-date").value,
+    category: document.getElementById("ae-cat").value,
+    amount: amt,
+    note: document.getElementById("ae-note").value.trim()
+  };
+  addExpense(Object.assign({ tripId: id }, e));
+  closeSheet();
+  renderDetail(id);
+}
+
+function openEditNotes(id) {
+  const t = getTrip(id);
+  openSheet("编辑备注", `
+    <div class="field"><label>备注</label><textarea id="en-note" placeholder="交通、住宿、注意事项…">${esc(t.notes || "")}</textarea></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="submitEditNotes('${id}')">保存</button></div>
+  `);
+}
+function submitEditNotes(id) {
+  updateTrip(id, { notes: document.getElementById("en-note").value.trim() });
+  closeSheet();
+  renderDetail(id);
+}
+
+function confirmDelete(id) {
+  openSheet("删除出差", `<p class="small muted">确定删除这次出差及其所有记录吗？此操作不可撤销。</p>
+    <div class="btn-row"><button class="btn btn-danger" onclick="doDelete('${id}')">确认删除</button>
+    <button class="btn btn-secondary" onclick="closeSheet()">取消</button></div>`);
+}
+function doDelete(id) {
+  deleteTrip(id);
+  closeSheet();
+  location.href = "trips.html";
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>城市资料 · 出差助手</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="page">
+  <h1 class="large-title">城市资料库</h1>
+  <p class="subtitle">常用出差城市的交通 / 美食 / 天气 / 贴士</p>
+  <div id="list"></div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="openAddCity()">+ 添加城市</button>
+  </div>
+</div>
+
+<script src="assets/js/util.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+renderTabbar("trips");
+const list = document.getElementById("list");
+const cities = getCities();
+
+function render() {
+  if (!cities.length) {
+    list.innerHTML = `<div class="card empty"><div class="ico">🏙️</div>暂无城市资料</div>`;
+    return;
+  }
+  let html = `<div class="group" style="margin-top:8px;">`;
+  cities.forEach(c => {
+    html += `<div class="card" style="margin-bottom:14px;padding:16px;">
+      <div class="flex-between">
+        <div style="font-size:18px;font-weight:600;">${esc(c.name)}</div>
+        <span class="di" style="color:var(--secondary);font-size:16px;cursor:pointer;" onclick="delCity('${esc(c.name)}')">🗑️</span>
+      </div>
+      <div class="muted small mt">📍 ${esc(c.loc || "")}</div>
+      <div class="row-sub mt">🚄 ${esc(c.transport || "")}</div>
+      <div class="row-sub">🍜 ${esc(c.food || "")}</div>
+      <div class="row-sub">🌤️ ${esc(c.weather || "")}</div>
+      <div class="row-sub">💡 ${esc(c.tip || "")}</div>
+    </div>`;
+  });
+  html += `</div>`;
+  list.innerHTML = html;
+}
+
+function openAddCity() {
+  openSheet("添加城市", `
+    <div class="field"><label>城市名</label><input id="ac-name" placeholder="如 武汉"></div>
+    <div class="field"><label>位置</label><input id="ac-loc" placeholder="如 湖北省东部，长江畔"></div>
+    <div class="field"><label>交通</label><input id="ac-trans" placeholder="如 武汉站 / 汉口站 / 天河机场"></div>
+    <div class="field"><label>美食</label><input id="ac-food" placeholder="如 热干面、小龙虾"></div>
+    <div class="field"><label>天气特点</label><input id="ac-weather" placeholder="如 夏季炎热潮湿"></div>
+    <div class="field"><label>出差贴士</label><textarea id="ac-tip" placeholder="如 地铁发达，市内优先地铁"></textarea></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="submitAddCity()">保存</button></div>
+  `);
+}
+function submitAddCity() {
+  const c = {
+    name: document.getElementById("ac-name").value.trim(),
+    loc: document.getElementById("ac-loc").value.trim(),
+    transport: document.getElementById("ac-trans").value.trim(),
+    food: document.getElementById("ac-food").value.trim(),
+    weather: document.getElementById("ac-weather").value.trim(),
+    tip: document.getElementById("ac-tip").value.trim()
+  };
+  if (!c.name) { toast("请填城市名"); return; }
+  addCity(c);
+  closeSheet(); render();
+}
+function delCity(name) {
+  if (!confirm(`删除「${name}」资料？`)) return;
+  deleteCity(name);
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

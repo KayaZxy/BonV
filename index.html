@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>出差助手</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="page">
+  <h1 class="large-title">出差助手</h1>
+  <p class="subtitle" id="greet">让每一次出差都井井有条</p>
+
+  <!-- 即将到来的出差 -->
+  <div class="group">
+    <div class="group-title">即将到来</div>
+    <div id="nextTrip"></div>
+  </div>
+
+  <!-- 家乡天气 -->
+  <div class="group">
+    <div class="group-title" id="homeWeatherTitle">家乡天气</div>
+    <div id="homeWeather"><div class="weather-card"><div class="weather-city">加载中…</div></div></div>
+  </div>
+
+  <!-- 快捷功能 -->
+  <div class="group">
+    <div class="group-title">快捷功能</div>
+    <div class="card">
+      <a class="row tap" href="weather.html">
+        <div class="row-icon" style="background:rgba(90,200,250,0.16)">🌤️</div>
+        <div class="row-label"><div class="row-title">查天气</div><div class="row-sub">目的地实时天气 + 3 日预报</div></div>
+        <span style="color:var(--secondary)">›</span>
+      </a>
+      <a class="row tap" href="cities.html">
+        <div class="row-icon" style="background:rgba(175,82,222,0.16)">🏙️</div>
+        <div class="row-label"><div class="row-title">城市资料库</div><div class="row-sub">常用出差城市交通 / 美食 / 贴士</div></div>
+        <span style="color:var(--secondary)">›</span>
+      </a>
+      <a class="row tap" href="expense.html">
+        <div class="row-icon" style="background:rgba(52,199,89,0.16)">💰</div>
+        <div class="row-label"><div class="row-title">费用报销</div><div class="row-sub">记录花销，自动统计合计</div></div>
+        <span style="color:var(--secondary)">›</span>
+      </a>
+      <a class="row tap" href="checklist.html">
+        <div class="row-icon" style="background:rgba(255,149,0,0.16)">🎒</div>
+        <div class="row-label"><div class="row-title">出行清单</div><div class="row-sub">勾选打包，不再遗漏</div></div>
+        <span style="color:var(--secondary)">›</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- 本年统计 -->
+  <div class="group">
+    <div class="group-title">本年概览</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="num" id="statTrips">0</div><div class="lbl">出差次数</div></div>
+      <div class="stat"><div class="num" id="statCities">0</div><div class="lbl">到过城市</div></div>
+      <div class="stat"><div class="num" id="statCost">¥0</div><div class="lbl">累计费用</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/util.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+renderTabbar("home");
+
+const profile = getProfile();
+const trips = getTrips();
+const today = todayStr();
+
+// 问候语
+const h = new Date().getHours();
+document.getElementById("greet").textContent =
+  (h < 6 ? "夜深了，" : h < 12 ? "早上好，" : h < 18 ? "下午好，" : "晚上好，") +
+  `${profile.name || ""} 👋 让每一次出差都井井有条`;
+
+// 即将到来的出差
+const upcoming = trips.filter(t => t.start >= today).sort((a, b) => a.start < b.start ? -1 : 1);
+const box = document.getElementById("nextTrip");
+if (upcoming.length) {
+  const t = upcoming[0];
+  const days = durDays(today, t.start);
+  const total = tripExpenseTotal(t);
+  box.innerHTML = `
+    <div class="card" style="padding:16px 16px 12px;">
+      <div class="flex-between">
+        <div style="font-size:18px;font-weight:600;">${esc(t.title)}</div>
+        <span class="badge b-blue">${days > 0 ? `还有 ${days} 天` : "今天出发"}</span>
+      </div>
+      <div class="muted small mt">📍 ${esc(t.city)} · ${fmtDate(t.start)} – ${fmtDate(t.end)}（${durDays(t.start, t.end)} 天）</div>
+      <div class="muted small">🎯 ${esc(t.purpose || "—")}</div>
+      <div class="btn-row" style="margin-bottom:0;">
+        <a class="btn btn-primary" href="trips.html?id=${t.id}" style="text-decoration:none;">查看行程方案</a>
+      </div>
+    </div>`;
+} else {
+  box.innerHTML = `<div class="card empty"><div class="ico">🗓️</div>暂无即将到来的出差<br><a href="trips.html">+ 新建一次出差</a></div>`;
+}
+
+// 家乡天气
+document.getElementById("homeWeatherTitle").textContent = `${profile.homeCity} · 家乡天气`;
+getWeather(profile.homeCity).then(d => {
+  document.getElementById("homeWeather").innerHTML = weatherCardHTML(profile.homeCity, d);
+});
+
+// 本年统计
+const thisYear = new Date().getFullYear();
+const yearTrips = trips.filter(t => t.start && t.start.startsWith(thisYear));
+const citiesSet = new Set(trips.map(t => t.city));
+const totalCost = trips.reduce((s, t) => s + tripExpenseTotal(t), 0);
+document.getElementById("statTrips").textContent = yearTrips.length;
+document.getElementById("statCities").textContent = citiesSet.size;
+document.getElementById("statCost").textContent = yuan(totalCost).replace(".00", "");
+</script>
+</body>
+</html>

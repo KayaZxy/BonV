@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>清单 · 出差助手</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="page">
+  <h1 class="large-title">出行清单</h1>
+  <p class="subtitle">勾选打包，出发前不再遗漏</p>
+  <div id="wrap"></div>
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="openAddItem()">+ 添加物品</button>
+    <button class="btn btn-secondary" onclick="openNewList()">+ 新清单</button>
+  </div>
+</div>
+
+<script src="assets/js/util.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/nav.js"></script>
+<script>
+renderTabbar("checklist");
+const wrap = document.getElementById("wrap");
+const cls = getChecklists();
+
+function render() {
+  if (!cls.length) {
+    wrap.innerHTML = `<div class="card empty"><div class="ico">🎒</div>还没有清单<br><a href="javascript:openNewList()">+ 新建一个</a></div>`;
+    return;
+  }
+  let html = "";
+  cls.forEach(cl => {
+    const done = cl.items.filter(i => i.checked).length;
+    const pct = cl.items.length ? Math.round(done / cl.items.length * 100) : 0;
+    html += `<div class="group" style="margin-top:8px;">
+      <div class="group-title">${esc(cl.name)} · ${done}/${cl.items.length}（${pct}%）</div>
+      <div class="card">`;
+    if (cl.items.length) {
+      cl.items.forEach((it, idx) => {
+        html += `
+        <label class="row tap" style="cursor:pointer;">
+          <input type="checkbox" class="ci" data-cl="${cl.id}" data-idx="${idx}" ${it.checked ? "checked" : ""} style="display:none;">
+          <div class="row-icon" style="background:${it.checked ? 'rgba(52,199,89,0.16)' : 'rgba(118,118,128,0.12)'};color:${it.checked ? 'var(--green)' : 'var(--secondary)'};font-size:18px;">${it.checked ? "✓" : "○"}</div>
+          <div class="row-label"><div class="row-title" style="${it.checked ? 'text-decoration:line-through;color:var(--secondary)' : ''}">${esc(it.text)}</div></div>
+          <span class="di" style="color:var(--secondary);font-size:16px;" onclick="delItem('${cl.id}',${idx});event.preventDefault();event.stopPropagation();">🗑️</span>
+        </label>`;
+      });
+    } else {
+      html += `<div class="row"><div class="row-label muted small">空清单，点下方「添加物品」</div></div>`;
+    }
+    html += `</div></div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+// 事件委托：勾选切换
+wrap.addEventListener("change", e => {
+  if (e.target.classList.contains("ci")) {
+    toggleChecklistItem(e.target.dataset.cl, +e.target.dataset.idx);
+    render();
+  }
+});
+// 事件委托：删除
+wrap.addEventListener("click", e => {
+  if (e.target.classList.contains("di")) {
+    // 由 onclick 属性处理
+  }
+});
+
+function openAddItem() {
+  if (!cls.length) { toast("请先新建清单"); openNewList(); return; }
+  const opts = cls.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  openSheet("添加物品", `
+    <div class="field"><label>所属清单</label><select id="ai-cl">${opts}</select></div>
+    <div class="field"><label>物品名称</label><input id="ai-text" placeholder="如 充电器"></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="submitAddItem()">添加</button></div>
+  `);
+}
+function submitAddItem() {
+  const clId = document.getElementById("ai-cl").value;
+  const text = document.getElementById("ai-text").value.trim();
+  if (!text) { toast("请填物品名"); return; }
+  const db = loadDB();
+  const cl = db.checklists.find(c => c.id === clId);
+  cl.items.push({ text, checked: false });
+  saveDB();
+  closeSheet(); render();
+}
+
+function openNewList() {
+  openSheet("新建清单", `
+    <div class="field"><label>清单名称</label><input id="nl-name" placeholder="如 夏季短差清单"></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="submitNewList()">创建</button></div>
+  `);
+}
+function submitNewList() {
+  const name = document.getElementById("nl-name").value.trim();
+  if (!name) { toast("请填名称"); return; }
+  const db = loadDB();
+  db.checklists.push({ id: uid(), name, items: [] });
+  saveDB();
+  closeSheet(); render();
+}
+
+function delItem(clId, idx) {
+  const db = loadDB();
+  const cl = db.checklists.find(c => c.id === clId);
+  if (cl) { cl.items.splice(idx, 1); saveDB(); render(); }
+}
+
+render();
+</script>
+</body>
+</html>
